@@ -1,0 +1,422 @@
+PROMPT GỬI ANTIGRAVITY — BUILD AIRSCOUT GENLAYER DAPP
+
+You are an expert full-stack Web3 + AI engineer.
+
+I want you to build a GenLayer dApp called AirScout.
+
+AirScout is an on-chain AI due diligence protocol for airdrop hunters.
+
+The goal is to help users research whether a Web3 project is worth farming before they waste time on unclear point systems, fake hype, weak products, fake backers, bot communities, or vague airdrop promises.
+
+Core positioning:
+
+AirScout helps airdrop hunters verify whether a project is worth farming based on public web evidence.
+
+This must be built around GenLayer Intelligent Contracts, not just a normal AI web app.
+
+GenLayer allows Python Intelligent Contracts with non-deterministic web reading and LLM reasoning.
+
+Important GenLayer functions:
+
+1. gl.nondet.web.render(url, mode="text")
+Used by the smart contract to read public web pages such as project website, docs, X page, quest page, GitHub, funding announcement, blog posts, etc.
+
+2. gl.nondet.exec_prompt(task, response_format="json")
+Used by the smart contract to ask an LLM to analyze the collected public data and return a structured JSON decision.
+
+Product concept:
+
+User submits a Web3 project for audit.
+
+Inputs:
+- project_name: str
+- website_url: str
+- docs_url: str
+- x_url: str
+- quest_url: str
+- github_url: str
+- funding_url: str
+- notes: str
+
+Some URLs may be empty strings.
+
+The GenLayer Intelligent Contract should:
+1. Read the provided public URLs using gl.nondet.web.render.
+2. Analyze the project using gl.nondet.exec_prompt.
+3. Produce a structured airdrop research score.
+4. Store the audit result on-chain as an attestation.
+5. Allow users to read back the audit result by audit_id.
+
+Main output fields:
+
+- project_name
+- overall_airdrop_score: 0 to 100
+- time_worthiness: "high" | "medium" | "low"
+- risk_level: "low" | "medium" | "high" | "unknown"
+- reward_clarity_score: 0 to 100
+- token_signal_score: 0 to 100
+- project_quality_score: 0 to 100
+- community_authenticity_score: 0 to 100
+- backer_legitimacy_score: 0 to 100
+- product_delivery_score: 0 to 100
+- sybil_competition_risk: "low" | "medium" | "high" | "unknown"
+- rule_change_risk: "low" | "medium" | "high" | "unknown"
+- recommended_strategy: short text
+- positive_signals: short text
+- red_flags: short text
+- evidence_summary: short text
+- created_at or audit_index
+- valid_until_days: int, for example 30
+
+Scoring logic:
+
+Airdrop Potential Score should consider:
+- 25% Project Quality
+- 20% Token / Airdrop Signal
+- 15% Funding & Backer Strength
+- 15% Product Usage Requirement
+- 10% Community Authenticity
+- 10% Reward Rule Clarity
+- 5% Competition / Sybil Risk
+
+The AI should not promise that an airdrop will happen.
+It should only estimate whether the project is worth researching or farming based on public evidence.
+
+Important wording:
+Use "potential", "risk", "signal", "evidence", "unclear", "unverified", "likely", "not guaranteed".
+Do not use definitive claims like "this project will airdrop" or "this project is a scam" unless directly proven by evidence.
+For legal safety, use risk categories instead of absolute accusations.
+
+User flow:
+
+1. User opens frontend.
+2. User enters project information and URLs.
+3. User clicks "Run AirScout Audit".
+4. Frontend calls the GenLayer contract write method.
+5. Contract reads web pages and runs AI analysis.
+6. Contract stores the final attestation.
+7. Frontend displays a clean dashboard:
+   - Overall Airdrop Score
+   - Time Worthiness
+   - Risk Level
+   - Score breakdown
+   - Recommended strategy
+   - Positive signals
+   - Red flags
+   - Evidence summary
+   - Audit timestamp / audit id
+
+MVP requirements:
+
+Frontend:
+- Build a simple clean dashboard.
+- Use a dark modern Web3 style.
+- Main sections:
+  1. Hero section: "AirScout — On-chain AI research for airdrop hunters"
+  2. Audit form
+  3. Score result dashboard
+  4. Previous audits list
+- Keep the UI practical, not too fancy.
+- Make the copy clear for real airdrop hunters.
+- Include loading state while audit is running.
+- Include error state if audit fails.
+- Include empty state before user submits.
+
+Backend / Contract:
+- Implement a GenLayer Intelligent Contract in Python.
+- Main class must be named exactly Contract and extend gl.Contract.
+- Store audits using TreeMap / DynArray storage.
+- Do not use normal dict/list for storage fields.
+- Public methods:
+  1. create_audit(...)
+     - write method
+     - accepts project_name and URLs as strings
+     - runs nondeterministic web + AI audit
+     - stores result
+     - returns audit_id or result summary
+  2. get_audit(audit_id: int)
+     - read method
+     - returns stored audit data
+  3. get_total_audits()
+     - read method
+     - returns total number of audits
+  4. optionally get_project_latest(project_name: str)
+     - read method
+     - returns latest audit id for a project if easy to implement
+
+Contract storage suggestion:
+- total_audits: u256
+- audit_project_names: TreeMap[u256, str]
+- audit_scores: TreeMap[u256, u256]
+- audit_risk_levels: TreeMap[u256, str]
+- audit_time_worthiness: TreeMap[u256, str]
+- audit_summary: TreeMap[u256, str]
+- audit_red_flags: TreeMap[u256, str]
+- audit_positive_signals: TreeMap[u256, str]
+- audit_strategy: TreeMap[u256, str]
+- audit_raw_json: TreeMap[u256, str]
+
+Keep storage simple.
+If nested objects are difficult in GenLayer Studio, store the JSON output as a string plus important fields separately.
+
+AI prompt inside contract:
+
+The prompt should ask the LLM to act as a Web3 airdrop due diligence analyst.
+
+It must analyze:
+- Does the project have a real product?
+- Is the airdrop / token signal strong or weak?
+- Is the point system clear or vague?
+- Are backers confirmed or unverified?
+- Does the project show delivery evidence?
+- Does the community look organic or inflated?
+- Are tasks useful or just engagement farming?
+- Is the time required worth it?
+- What is the recommended farming strategy?
+- What are the red flags?
+- What are the positive signals?
+
+The LLM must return JSON only.
+
+Example JSON format:
+{
+  "overall_airdrop_score": 78,
+  "time_worthiness": "high",
+  "risk_level": "medium",
+  "reward_clarity_score": 65,
+  "token_signal_score": 72,
+  "project_quality_score": 82,
+  "community_authenticity_score": 58,
+  "backer_legitimacy_score": 74,
+  "product_delivery_score": 80,
+  "sybil_competition_risk": "high",
+  "rule_change_risk": "medium",
+  "recommended_strategy": "Farm lightly but consistently. Focus on product usage, quality feedback, and avoid high-cost sybil behavior.",
+  "positive_signals": "Product appears live, docs are detailed, and the team posts regular development updates.",
+  "red_flags": "Point-to-token conversion is not confirmed and X engagement contains many generic replies.",
+  "evidence_summary": "The project has meaningful product signals but reward clarity remains incomplete."
+}
+
+Important GenLayer Studio deployment rules:
+
+Before writing or modifying any GenLayer Intelligent Contract .py file, follow these rules exactly.
+
+RULE 1:
+The first line of the contract file must be exactly:
+
+# v0.2.16
+
+Then include the dependency comment:
+
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+
+Then:
+
+from genlayer import *
+
+Without this, GenLayer Studio may fall back to v0.1.0 and cause errors such as:
+- Contract Queues not found
+- Contract IdlenessPhase not found
+- Contract RevealingPhase not found
+
+RULE 2:
+Never reassign TreeMap() or DynArray() inside __init__.
+
+Wrong:
+def __init__(self):
+    self.projects = TreeMap()
+    self.audits = TreeMap()
+
+Correct:
+def __init__(self):
+    self.total_audits = u256(0)
+
+TreeMap and DynArray fields are auto-initialized by GenVM.
+Do not touch them in __init__.
+
+RULE 3:
+Do not use float in public method signatures.
+
+Wrong:
+@gl.public.write
+def submit(self, score: float): ...
+
+Correct:
+@gl.public.write
+def submit(self, score: int): ...
+
+Use integers only. If decimals are needed, multiply by 100.
+
+RULE 4:
+Allowed public method types only:
+- str
+- bool
+- bytes
+- int
+- sized ints such as u8, u16, u32, u64, u128, u256, i8 to i256
+- Address
+- DynArray[T]
+- TreeMap[K, V]
+
+Do not use:
+- float
+- list[T]
+- dict[K, V]
+- custom classes
+- non-instantiated generics
+
+RULE 5:
+Storage must use TreeMap and DynArray, never normal dict or list.
+
+Correct:
+class Contract(gl.Contract):
+    users: TreeMap[str, u256]
+    posts: DynArray[str]
+
+Wrong:
+class Contract(gl.Contract):
+    users: dict[str, int]
+    posts: list[str]
+
+RULE 6:
+The contract class must be named exactly Contract and extend gl.Contract.
+
+Correct:
+class Contract(gl.Contract):
+    ...
+
+Wrong:
+class AirScoutContract(gl.Contract):
+    ...
+
+RULE 7:
+All gl.nondet.* calls must be inside gl.vm.run_nondet_unsafe(leader_fn, validator_fn).
+
+Wrong:
+@gl.public.write
+def verify(self):
+    result = gl.nondet.exec_prompt("...")
+
+Correct:
+@gl.public.write
+def verify(self):
+    def leader_fn():
+        return gl.nondet.exec_prompt("...", response_format="json")
+
+    def validator_fn(leader_result) -> bool:
+        return isinstance(leader_result, gl.vm.Return)
+
+    return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+
+All gl.nondet.web.render and gl.nondet.exec_prompt calls must be wrapped this way.
+
+Deployment troubleshooting:
+
+If Studio shows:
+Contract Queues not found
+Then check Rule 1.
+
+If transaction is FINALIZED but Result is ERROR with:
+AssertionError: TreeMap <- TreeMap
+Then check Rule 2.
+
+If contract has schema error:
+Check public method signatures and storage types.
+No float, no dict, no list, no custom class public args.
+
+If sidebar shows Not deployed yet but transaction is FINALIZED:
+Click the transaction in sidebar and inspect Result.
+If Result is ERROR, read the traceback.
+
+If deploy worked before but now fails:
+Go to GenLayer Studio Settings.
+Reset Storage.
+Hard refresh the browser.
+Then deploy again.
+
+Recommended deployment flow:
+
+1. Open https://studio.genlayer.com/run-debug
+2. Settings → Reset Storage → Confirm
+3. Hard refresh
+4. Deploy a minimal storage_test.py sanity contract first
+5. If storage_test succeeds, deploy the main AirScout contract
+6. After deploy, click the transaction in the sidebar
+7. Confirm Result: SUCCESS, not only Status: FINALIZED
+8. If Result: ERROR, map the traceback to the 7 rules above
+
+Deliverables:
+
+Please create:
+1. GenLayer contract file:
+   - airscout_contract.py
+   - deployable in GenLayer Studio
+   - follows all 7 deployment rules
+
+2. Frontend:
+   - clean React/Next.js or Vite React app
+   - audit form
+   - result dashboard
+   - previous audits UI
+   - loading and error states
+   - clear Web3 dark design
+
+3. README:
+   - project overview
+   - how AirScout works
+   - how to deploy contract in GenLayer Studio
+   - how to run frontend
+   - common GenLayer deployment errors and how to avoid them
+
+4. Example test data:
+   - include sample project inputs
+   - include expected sample JSON output
+
+Important:
+Do not over-engineer the first version.
+Build a working MVP first.
+
+The MVP must prove this core loop:
+
+User submits project URLs
+→ GenLayer contract reads web data
+→ AI analyzes airdrop worthiness
+→ contract stores an on-chain audit result
+→ frontend displays the score and reasoning
+
+Keep the product focused on airdrop hunters.
+
+Tone of app:
+Practical, research-driven, not hype.
+
+Suggested tagline:
+AirScout turns airdrop hunting from guesswork into evidence-based research.
+
+Suggested dashboard labels:
+- Overall Airdrop Score
+- Time Worthiness
+- Risk Level
+- Token Signal
+- Reward Clarity
+- Product Quality
+- Community Authenticity
+- Backer Legitimacy
+- Product Delivery
+- Red Flags
+- Positive Signals
+- Recommended Strategy
+
+
+EXTRA PRIORITY NOTE FOR ANTIGRAVITY
+
+Priority: make the GenLayer contract deploy successfully first.
+
+Do not start with a complex frontend before the contract is working.
+
+First build and test:
+1. minimal storage_test.py
+2. minimal AirScout contract with create_audit and get_audit
+3. then frontend integration
+
+Avoid adding complex data structures that may break GenLayer Studio schema parsing.
+Prefer simple TreeMap storage and JSON strings.

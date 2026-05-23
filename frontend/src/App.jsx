@@ -42,6 +42,8 @@ export default function App() {
   const [current, setCurrent] = useState(null);
   const [audits, setAudits] = useState([]);
   const [latestAuditId, setLatestAuditId] = useState(null);
+  const hasEthereum = typeof window !== "undefined" && Boolean(window.ethereum);
+  const isMetaMask = hasEthereum && Boolean(window.ethereum.isMetaMask);
 
   const canSubmit = Boolean(walletAddress && form.project_name.trim() && !loading);
 
@@ -57,8 +59,8 @@ export default function App() {
   };
 
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      setError("MetaMask is required. Please install MetaMask first.");
+    if (!hasEthereum || !isMetaMask) {
+      setError("This app currently supports MetaMask Extension for GenLayer transactions.");
       return;
     }
 
@@ -190,6 +192,7 @@ export default function App() {
           </button>
           {walletAddress ? <span className="pill">{walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}</span> : null}
         </div>
+        {!isMetaMask ? <p className="warn-text">Wallet status: MetaMask extension not detected. Please open with MetaMask on Chrome/Brave.</p> : null}
         {latestAuditId !== null ? <p className="muted">Latest on-chain audit ID: {latestAuditId}</p> : null}
       </section>
 
@@ -218,7 +221,7 @@ export default function App() {
                 )}
               </div>
             ))}
-            <button className="primary" type="submit" disabled={!canSubmit}>
+            <button className="primary" type="submit" disabled={!canSubmit || !isMetaMask}>
               {loading ? "Running On-Chain Audit..." : "Run AirScout Audit"}
             </button>
           </form>

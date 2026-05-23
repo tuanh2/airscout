@@ -26,6 +26,17 @@ body {
 .hero { background: linear-gradient(135deg, #ffffff, #f0f5ff); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
 .hero h1 { margin: 0; font-size: 34px; letter-spacing: -0.03em; }
 .subtitle { margin-top: 8px; color: var(--muted); }
+.hero { position: relative; overflow: hidden; }
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  right: -90px;
+  top: -110px;
+  background: radial-gradient(circle, rgba(19, 99, 223, 0.18), transparent 65%);
+  pointer-events: none;
+}
 
 .actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .pill { background: #eaf2ff; color: #174784; border: 1px solid #cadbfd; border-radius: 999px; padding: 7px 11px; font-size: 12px; }
@@ -84,6 +95,15 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .muted { color: var(--muted); }
 .error-text { color: var(--danger); font-weight: 600; }
 .ok-text { color: var(--ok); font-weight: 600; }
+.warn-text {
+  color: #9a5a00;
+  background: #fff4df;
+  border: 1px solid #f6d9a6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-weight: 600;
+}
 
 @media (max-width: 960px) {
   .grid { grid-template-columns: 1fr; }

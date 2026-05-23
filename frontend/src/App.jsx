@@ -181,7 +181,11 @@ export default function App() {
 
   return (
     <div className="container">
+      <a className="genlayer-link" href="https://genlayer.com" target="_blank" rel="noreferrer">
+        Powered by GenLayer
+      </a>
       <section className="hero">
+        <div className="hero-glow" />
         <h1>AirScout</h1>
         <p className="subtitle">On-chain AI due diligence for airdrop hunters.</p>
         <p className="muted">Contract: {contractAddress || "not configured"}</p>

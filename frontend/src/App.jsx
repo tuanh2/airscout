@@ -124,6 +124,17 @@ function buildCoverage(checkedSources) {
   };
 }
 
+function parseEvidenceItems(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function buildNotesPayload(form) {
   const lines = [];
   if (form.notes.trim()) lines.push(form.notes.trim());
@@ -277,12 +288,14 @@ export default function App() {
       ["Time ROI", current?.time_roi_score ?? 0],
       ["Red Flag Score", current?.red_flag_score ?? 0],
       ["Confidence Score", current?.confidence_score ?? 0],
+      ["Farming Success Likelihood", current?.farming_success_likelihood ?? 0],
     ],
     [current]
   );
 
   const overallScore = current ? scorePercent(current.overall_airdrop_score) : 0;
   const coverage = buildCoverage(current?.sources_checked || "");
+  const evidenceItems = parseEvidenceItems(current?.evidence_items);
 
   return (
     <div className="page">
@@ -401,6 +414,7 @@ export default function App() {
                   {chip("Time", current?.time_worthiness || "unknown")}
                   {chip("Source", current?.source_quality || "unknown")}
                 </div>
+                <p className="muted">Farming success likelihood: {scorePercent(current?.farming_success_likelihood ?? 0)}/100</p>
                 <p className="muted">Stored as on-chain audit result.</p>
               </div>
             </div>
@@ -457,6 +471,24 @@ export default function App() {
                   <div className="insight-panel"><h4>Red Flags</h4><p>{current.red_flags || "Not provided."}</p></div>
                   <div className="insight-panel"><h4>Sources Checked</h4><p>{current.sources_checked || "Not reported."}</p></div>
                   <div className="insight-panel"><h4>Sources Failed</h4><p>{current.sources_failed || "No known failures."}</p></div>
+                  <div className="insight-panel full">
+                    <h4>Evidence Citations</h4>
+                    {evidenceItems.length === 0 ? <p>No structured citations returned yet.</p> : (
+                      <div className="evidence-list">
+                        {evidenceItems.slice(0, 8).map((item, idx) => (
+                          <div key={`${item.source_url || "src"}-${idx}`} className="evidence-item">
+                            <p><strong>{item.claim || "Claim"}</strong> ({item.verdict || "unknown"})</p>
+                            <p className="muted">Type: {item.source_type || "unknown"} | Confidence: {item.confidence || "unknown"}</p>
+                            {item.source_url ? (
+                              <a href={item.source_url} target="_blank" rel="noreferrer">{item.source_url}</a>
+                            ) : (
+                              <p className="muted">No source URL attached.</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="insight-panel full"><h4>Recommended Strategy</h4><p>{current.recommended_strategy || "Not provided."}</p></div>
                   <div className="insight-panel full"><h4>Evidence Summary</h4><p>{current.evidence_summary || "Not provided."}</p></div>
                 </div>

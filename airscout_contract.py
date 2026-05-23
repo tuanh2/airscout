@@ -195,8 +195,10 @@ class Contract(gl.Contract):
                 "project_existence_score, product_delivery_score, fundraising_verification_score, backer_legitimacy_score, "
                 "token_airdrop_signal_score, reward_clarity_score, community_authenticity_score, time_roi_score, red_flag_score, "
                 "sybil_competition_risk, rule_change_risk, verified_facts, unverified_claims, missing_evidence, positive_signals, "
-                "red_flags, recommended_strategy, evidence_summary, source_quality, sources_checked, sources_failed.\n"
-                "sources_checked and sources_failed should be concise text summaries."
+                "red_flags, recommended_strategy, evidence_summary, source_quality, sources_checked, sources_failed, "
+                "farming_success_likelihood, evidence_items.\n"
+                "sources_checked and sources_failed should be concise text summaries. "
+                "evidence_items should be a JSON array of short objects with keys: claim, verdict, source_url, source_type, confidence."
                 f"\n\nCollected evidence:{evidence_block}"
             )
 
@@ -236,6 +238,7 @@ class Contract(gl.Contract):
             - (0.12 * red_flag_score)
         )
         overall = self._clamp_score(weighted)
+        farming_success_likelihood = self._clamp_score(self._safe_int(parsed.get("farming_success_likelihood", overall), overall))
 
         sybil_risk = self._to_level(parsed.get("sybil_competition_risk", "unknown"), "low,medium,high,unknown", "unknown")
         rule_risk = self._to_level(parsed.get("rule_change_risk", "unknown"), "low,medium,high,unknown", "unknown")
@@ -272,6 +275,8 @@ class Contract(gl.Contract):
             "source_quality": source_quality,
             "sources_checked": str(parsed.get("sources_checked", "; ".join([x[0] for x in candidate_pairs]))),
             "sources_failed": str(parsed.get("sources_failed", "")),
+            "farming_success_likelihood": farming_success_likelihood,
+            "evidence_items": parsed.get("evidence_items", []),
         }
 
         audit_id = int(self.total_audits)

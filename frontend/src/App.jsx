@@ -19,6 +19,14 @@ const emptyForm = fields.reduce((acc, f) => ({ ...acc, [f.key]: "" }), {});
 const contractAddress = import.meta.env.VITE_GENLAYER_CONTRACT_ADDRESS;
 const selectedNetwork = import.meta.env.VITE_GENLAYER_NETWORK || "studionet";
 
+function toFriendlyError(err) {
+  const msg = err?.message || String(err || "");
+  if (msg.includes("wallet_getSnaps")) {
+    return "Your wallet provider in this browser does not support MetaMask Snaps (wallet_getSnaps). Open this app in Chrome/Brave with MetaMask extension enabled, then connect wallet again.";
+  }
+  return msg || "Something went wrong. Please try again.";
+}
+
 function riskBadge(v) {
   const value = (v || "unknown").toLowerCase();
   return <span className={`badge ${value}`}>{value}</span>;
@@ -65,7 +73,7 @@ export default function App() {
       setWalletAddress(address);
       setInfo("Wallet connected. You can run an on-chain audit now.");
     } catch (err) {
-      setError(err?.message || "Failed to connect wallet.");
+      setError(toFriendlyError(err));
     } finally {
       setWalletLoading(false);
     }
@@ -148,7 +156,7 @@ export default function App() {
       setForm(emptyForm);
       setInfo(`Audit completed on-chain. Audit ID: ${newAuditId}`);
     } catch (err) {
-      setError(err?.message || "Audit failed. Please retry.");
+      setError(toFriendlyError(err));
     } finally {
       setLoading(false);
     }

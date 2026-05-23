@@ -3,16 +3,18 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import { TransactionStatus } from "genlayer-js/types";
 
-const emptyForm = {
-  project_name: "",
-  website_url: "",
-  docs_url: "",
-  x_url: "",
-  quest_url: "",
-  github_url: "",
-  funding_url: "",
-  notes: "",
-};
+const fields = [
+  { key: "project_name", label: "Project Name", placeholder: "Example: LayerZero", required: true },
+  { key: "website_url", label: "Website URL", placeholder: "https://..." },
+  { key: "docs_url", label: "Docs URL", placeholder: "https://docs..." },
+  { key: "x_url", label: "X (Twitter) URL", placeholder: "https://x.com/..." },
+  { key: "quest_url", label: "Quest URL", placeholder: "https://..." },
+  { key: "github_url", label: "GitHub URL", placeholder: "https://github.com/..." },
+  { key: "funding_url", label: "Funding Announcement URL", placeholder: "https://..." },
+  { key: "notes", label: "Research Notes", placeholder: "Any context for AI analysis...", isTextArea: true },
+];
+
+const emptyForm = fields.reduce((acc, f) => ({ ...acc, [f.key]: "" }), {});
 
 const contractAddress = import.meta.env.VITE_GENLAYER_CONTRACT_ADDRESS;
 const selectedNetwork = import.meta.env.VITE_GENLAYER_NETWORK || "studionet";
@@ -28,15 +30,23 @@ export default function App() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [current, setCurrent] = useState(null);
   const [audits, setAudits] = useState([]);
   const [latestAuditId, setLatestAuditId] = useState(null);
+
+  const canSubmit = Boolean(walletAddress && form.project_name.trim() && !loading);
 
   const getClient = (account) =>
     createClient({
       chain: studionet,
       account,
     });
+
+  const updateField = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (error) setError("");
+  };
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -45,6 +55,7 @@ export default function App() {
     }
 
     setError("");
+    setInfo("");
     setWalletLoading(true);
     try {
       const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -52,6 +63,7 @@ export default function App() {
       const client = getClient(address);
       await client.connect(selectedNetwork);
       setWalletAddress(address);
+      setInfo("Wallet connected. You can run an on-chain audit now.");
     } catch (err) {
       setError(err?.message || "Failed to connect wallet.");
     } finally {
@@ -62,9 +74,10 @@ export default function App() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setInfo("");
 
     if (!contractAddress) {
-      setError("Missing VITE_GENLAYER_CONTRACT_ADDRESS in .env.");
+      setError("Missing VITE_GENLAYER_CONTRACT_ADDRESS environment variable.");
       return;
     }
 
@@ -73,8 +86,9 @@ export default function App() {
       return;
     }
 
-    if (!form.project_name.trim()) {
-      setError("Project name is required.");
+    const projectName = form.project_name.trim();
+    if (!projectName) {
+      setError("Please enter a project name.");
       return;
     }
 
@@ -83,22 +97,24 @@ export default function App() {
       const client = getClient(walletAddress);
       await client.connect(selectedNetwork);
 
+      setInfo("Submitting transaction to GenLayer...");
       const txHash = await client.writeContract({
         address: contractAddress,
         functionName: "create_audit",
         args: [
-          form.project_name,
-          form.website_url,
-          form.docs_url,
-          form.x_url,
-          form.quest_url,
-          form.github_url,
-          form.funding_url,
-          form.notes,
+          projectName,
+          form.website_url.trim(),
+          form.docs_url.trim(),
+          form.x_url.trim(),
+          form.quest_url.trim(),
+          form.github_url.trim(),
+          form.funding_url.trim(),
+          form.notes.trim(),
         ],
         value: BigInt(0),
       });
 
+      setInfo("Transaction sent. Waiting for on-chain confirmation...");
       await client.waitForTransactionReceipt({
         hash: txHash,
         status: TransactionStatus.ACCEPTED,
@@ -111,9 +127,7 @@ export default function App() {
       });
 
       const newAuditId = Number(totalAudits) - 1;
-      if (newAuditId < 0) {
-        throw new Error("Unexpected audit ID from contract state.");
-      }
+      if (newAuditId < 0) throw new Error("Unexpected audit ID from contract state.");
 
       const rawAudit = await client.readContract({
         address: contractAddress,
@@ -132,6 +146,7 @@ export default function App() {
       setLatestAuditId(newAuditId);
       setAudits((prev) => [{ id: prev.length, ...result }, ...prev]);
       setForm(emptyForm);
+      setInfo(`Audit completed on-chain. Audit ID: ${newAuditId}`);
     } catch (err) {
       setError(err?.message || "Audit failed. Please retry.");
     } finally {
@@ -157,89 +172,75 @@ export default function App() {
   return (
     <div className="container">
       <section className="hero">
-        <h1>AirScout - On-chain AI research for airdrop hunters</h1>
-        <p>AirScout turns airdrop hunting from guesswork into evidence-based research.</p>
-        <p className="muted">
-          Contract: {contractAddress || "not configured"} | Network: {selectedNetwork}
-        </p>
-        <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={connectWallet} disabled={walletLoading}>
+        <h1>AirScout</h1>
+        <p className="subtitle">On-chain AI due diligence for airdrop hunters.</p>
+        <p className="muted">Contract: {contractAddress || "not configured"}</p>
+        <p className="muted">Network: {selectedNetwork}</p>
+        <div className="actions">
+          <button className="primary" type="button" onClick={connectWallet} disabled={walletLoading}>
             {walletLoading ? "Connecting..." : walletAddress ? "Wallet Connected" : "Connect Wallet"}
           </button>
-          {walletAddress ? <p className="muted">Wallet: {walletAddress}</p> : null}
-          {latestAuditId !== null ? <p className="muted">Latest on-chain audit ID: {latestAuditId}</p> : null}
+          {walletAddress ? <span className="pill">{walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}</span> : null}
         </div>
+        {latestAuditId !== null ? <p className="muted">Latest on-chain audit ID: {latestAuditId}</p> : null}
       </section>
 
-      <div className="grid" style={{ marginTop: 16 }}>
+      <div className="grid">
         <section className="card">
-          <h3>Run AirScout Audit</h3>
+          <h3>Run New Audit</h3>
           <form onSubmit={onSubmit}>
-            {Object.keys(form).map((k) => (
-              <div key={k}>
-                <label>{k}</label>
-                {k === "notes" ? (
-                  <textarea value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+            {fields.map((field) => (
+              <div key={field.key}>
+                <label htmlFor={field.key}>{field.label}{field.required ? " *" : ""}</label>
+                {field.isTextArea ? (
+                  <textarea
+                    id={field.key}
+                    placeholder={field.placeholder}
+                    value={form[field.key]}
+                    onChange={(e) => updateField(field.key, e.target.value)}
+                  />
                 ) : (
-                  <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+                  <input
+                    id={field.key}
+                    placeholder={field.placeholder}
+                    value={form[field.key]}
+                    onChange={(e) => updateField(field.key, e.target.value)}
+                    required={Boolean(field.required)}
+                  />
                 )}
               </div>
             ))}
-            <button type="submit" disabled={loading}>
-              {loading ? "Running audit..." : "Run AirScout Audit"}
+            <button className="primary" type="submit" disabled={!canSubmit}>
+              {loading ? "Running On-Chain Audit..." : "Run AirScout Audit"}
             </button>
-            {error ? <p style={{ color: "#ff7b7b" }}>{error}</p> : null}
           </form>
+          {info ? <p className="ok-text">{info}</p> : null}
+          {error ? <p className="error-text">{error}</p> : null}
         </section>
 
         <section className="card">
-          <h3>Score Result Dashboard</h3>
+          <h3>Result Dashboard</h3>
           {!current && !loading && <p className="muted">No audit yet. Submit a project to see scoring and reasoning.</p>}
-          {loading && <p className="muted">Analyzing public evidence. This can take a while on-chain.</p>}
+          {loading && <p className="muted">Analyzing public evidence on-chain. This can take a while.</p>}
           {current && (
             <>
               <div className="kpis">
-                <div className="kpi">
-                  <small>Overall Airdrop Score</small>
-                  <strong>{current.overall_airdrop_score}</strong>
-                </div>
-                <div className="kpi">
-                  <small>Time Worthiness</small>
-                  <strong>{current.time_worthiness}</strong>
-                </div>
-                <div className="kpi">
-                  <small>Risk Level</small>
-                  <strong>{current.risk_level}</strong>
-                </div>
+                <div className="kpi"><small>Overall Score</small><strong>{current.overall_airdrop_score}</strong></div>
+                <div className="kpi"><small>Time Worthiness</small><strong>{current.time_worthiness}</strong></div>
+                <div className="kpi"><small>Risk Level</small><strong>{current.risk_level}</strong></div>
               </div>
-              <p style={{ marginTop: 12 }}>
-                {riskBadge(current.risk_level)}
-                {riskBadge(current.sybil_competition_risk)}
-                {riskBadge(current.rule_change_risk)}
-              </p>
-              {rows.map(([k, v]) => (
-                <p key={k}>
-                  <span className="muted">{k}:</span> {v}
-                </p>
-              ))}
-              <p>
-                <span className="muted">Recommended Strategy:</span> {current.recommended_strategy}
-              </p>
-              <p>
-                <span className="muted">Positive Signals:</span> {current.positive_signals}
-              </p>
-              <p>
-                <span className="muted">Red Flags:</span> {current.red_flags}
-              </p>
-              <p>
-                <span className="muted">Evidence Summary:</span> {current.evidence_summary}
-              </p>
+              <p className="badge-row">{riskBadge(current.risk_level)}{riskBadge(current.sybil_competition_risk)}{riskBadge(current.rule_change_risk)}</p>
+              {rows.map(([k, v]) => <p key={k}><span className="muted">{k}:</span> {v}</p>)}
+              <p><span className="muted">Recommended Strategy:</span> {current.recommended_strategy}</p>
+              <p><span className="muted">Positive Signals:</span> {current.positive_signals}</p>
+              <p><span className="muted">Red Flags:</span> {current.red_flags}</p>
+              <p><span className="muted">Evidence Summary:</span> {current.evidence_summary}</p>
             </>
           )}
         </section>
       </div>
 
-      <section className="card" style={{ marginTop: 16 }}>
+      <section className="card audits">
         <h3>Previous Audits ({audits.length})</h3>
         {audits.length === 0 && <p className="muted">No previous audits yet.</p>}
         {audits.map((a) => (

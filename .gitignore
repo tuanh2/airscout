@@ -1,4 +1,9 @@
-frontend/node_modules/
-frontend/dist/
+.env
+.env.local
+node_modules
+dist
+build
 frontend/.env
 frontend/.vercel/
+frontend/node_modules/
+frontend/dist/

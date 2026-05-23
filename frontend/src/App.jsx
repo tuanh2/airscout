@@ -14,15 +14,22 @@ const mainField = {
 const evidenceFields = [
   { key: "website_url", label: "Website URL", placeholder: "https://...", help: "Official project website." },
   { key: "docs_url", label: "Docs URL", placeholder: "https://docs...", help: "Documentation and product details." },
-  { key: "x_url", label: "X / Twitter URL", placeholder: "https://x.com/...", help: "Team updates, announcements, and activity." },
+  { key: "x_url", label: "X / Twitter URL", placeholder: "https://x.com/...", help: "Team updates and announcements." },
   { key: "quest_url", label: "Quest URL", placeholder: "https://...", help: "Campaign or quest page, if available." },
   { key: "github_url", label: "GitHub URL", placeholder: "https://github.com/...", help: "Code and shipping signals." },
-  {
-    key: "funding_url",
-    label: "Funding Announcement URL",
-    placeholder: "https://...",
-    help: "Backer and financing evidence.",
-  },
+  { key: "funding_url", label: "Funding Announcement URL", placeholder: "https://...", help: "Project-side fundraising evidence." },
+];
+
+const advancedFields = [
+  { key: "coinmarketcap_url", label: "CoinMarketCap URL", placeholder: "https://coinmarketcap.com/..." },
+  { key: "coingecko_url", label: "CoinGecko URL", placeholder: "https://coingecko.com/..." },
+  { key: "cryptorank_url", label: "CryptoRank URL", placeholder: "https://cryptorank.io/..." },
+  { key: "rootdata_url", label: "RootData URL", placeholder: "https://rootdata.com/..." },
+  { key: "defillama_url", label: "DefiLlama URL", placeholder: "https://defillama.com/..." },
+  { key: "messari_url", label: "Messari URL", placeholder: "https://messari.io/..." },
+  { key: "crunchbase_url", label: "Crunchbase URL", placeholder: "https://crunchbase.com/..." },
+  { key: "backer_portfolio_url", label: "Backer Portfolio URL", placeholder: "https://..." },
+  { key: "extra_sources", label: "Extra Evidence URLs", placeholder: "https://a.com, https://b.com" },
 ];
 
 const notesField = {
@@ -41,6 +48,15 @@ const emptyForm = {
   github_url: "",
   funding_url: "",
   notes: "",
+  coinmarketcap_url: "",
+  coingecko_url: "",
+  cryptorank_url: "",
+  rootdata_url: "",
+  defillama_url: "",
+  messari_url: "",
+  crunchbase_url: "",
+  backer_portfolio_url: "",
+  extra_sources: "",
 };
 
 const contractAddress = import.meta.env.VITE_GENLAYER_CONTRACT_ADDRESS;
@@ -61,11 +77,7 @@ function getRiskClass(value) {
 }
 
 function chip(label, value) {
-  return (
-    <span className={`chip ${getRiskClass(value)}`}>
-      {label}: {String(value || "unknown").toUpperCase()}
-    </span>
-  );
+  return <span className={`chip ${getRiskClass(value)}`}>{label}: {String(value || "unknown").toUpperCase()}</span>;
 }
 
 function shortAddress(v) {
@@ -91,6 +103,38 @@ function scoreClass(v) {
   return "bad";
 }
 
+function splitSources(text) {
+  if (!text) return [];
+  return String(text)
+    .split(";")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function buildCoverage(checkedSources) {
+  const list = splitSources(checkedSources);
+  const lower = list.map((x) => x.toLowerCase());
+  const has = (keys) => lower.some((item) => keys.some((k) => item.includes(k)));
+  return {
+    official: has(["website", "docs", "blog", "roadmap", "github"]),
+    funding: has(["funding", "coinmarketcap", "coingecko", "cryptorank", "rootdata", "defillama", "messari", "crunchbase", "backer"]),
+    product: has(["github", "changelog", "app", "api", "status", "mainnet", "testnet"]),
+    community: has(["x_url", "twitter", "discord", "community", "forum"]),
+    airdrop: has(["quest", "points", "rewards", "galxe", "zealy", "layer3", "intract", "taskon"]),
+  };
+}
+
+function buildNotesPayload(form) {
+  const lines = [];
+  if (form.notes.trim()) lines.push(form.notes.trim());
+  lines.push("", "Advanced Evidence Sources:");
+  advancedFields.forEach((f) => {
+    const v = form[f.key].trim();
+    if (v) lines.push(`${f.key}: ${v}`);
+  });
+  return lines.join("\n").trim();
+}
+
 export default function App() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -101,6 +145,7 @@ export default function App() {
   const [current, setCurrent] = useState(null);
   const [audits, setAudits] = useState([]);
   const [latestAuditId, setLatestAuditId] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const hasEthereum = typeof window !== "undefined" && Boolean(window.ethereum);
   const isMetaMask = hasEthereum && Boolean(window.ethereum.isMetaMask);
 
@@ -166,10 +211,8 @@ export default function App() {
       const client = getClient(walletAddress);
       await client.connect(selectedNetwork);
 
+      const notesPayload = buildNotesPayload(form);
       setInfo("Scanning public evidence...");
-      setInfo("Reading project sources...");
-      setInfo("Running GenLayer AI analysis...");
-      setInfo("Writing audit on-chain...");
 
       const txHash = await client.writeContract({
         address: contractAddress,
@@ -182,16 +225,15 @@ export default function App() {
           form.quest_url.trim(),
           form.github_url.trim(),
           form.funding_url.trim(),
-          form.notes.trim(),
+          notesPayload,
         ],
         value: BigInt(0),
       });
 
-      setInfo("Transaction sent. Waiting for final confirmation...");
-      await client.waitForTransactionReceipt({
-        hash: txHash,
-        status: TransactionStatus.ACCEPTED,
-      });
+      setInfo("Reading project sources...");
+      setInfo("Running GenLayer AI analysis...");
+      setInfo("Writing audit on-chain...");
+      await client.waitForTransactionReceipt({ hash: txHash, status: TransactionStatus.ACCEPTED });
 
       const totalAudits = await client.readContract({
         address: contractAddress,
@@ -209,11 +251,7 @@ export default function App() {
       });
 
       const parsedAudit = JSON.parse(rawAudit);
-      const result = {
-        ...parsedAudit,
-        created_at: new Date().toISOString(),
-        audit_id: newAuditId,
-      };
+      const result = { ...parsedAudit, created_at: new Date().toISOString(), audit_id: newAuditId };
 
       setCurrent(result);
       setLatestAuditId(newAuditId);
@@ -228,28 +266,23 @@ export default function App() {
   };
 
   const scoreRows = useMemo(
-    () =>
-      current
-        ? [
-            ["Token Signal", current.token_signal_score],
-            ["Reward Clarity", current.reward_clarity_score],
-            ["Project Quality", current.project_quality_score],
-            ["Community Authenticity", current.community_authenticity_score],
-            ["Backer Legitimacy", current.backer_legitimacy_score],
-            ["Product Delivery", current.product_delivery_score],
-          ]
-        : [
-            ["Token Signal", 0],
-            ["Reward Clarity", 0],
-            ["Project Quality", 0],
-            ["Community Authenticity", 0],
-            ["Backer Legitimacy", 0],
-            ["Product Delivery", 0],
-          ],
+    () => [
+      ["Project Existence", current?.project_existence_score ?? 0],
+      ["Product Delivery", current?.product_delivery_score ?? 0],
+      ["Fundraising Verification", current?.fundraising_verification_score ?? 0],
+      ["Backer Legitimacy", current?.backer_legitimacy_score ?? 0],
+      ["Token / Airdrop Signal", current?.token_airdrop_signal_score ?? current?.token_signal_score ?? 0],
+      ["Reward Clarity", current?.reward_clarity_score ?? 0],
+      ["Community Authenticity", current?.community_authenticity_score ?? 0],
+      ["Time ROI", current?.time_roi_score ?? 0],
+      ["Red Flag Score", current?.red_flag_score ?? 0],
+      ["Confidence Score", current?.confidence_score ?? 0],
+    ],
     [current]
   );
 
   const overallScore = current ? scorePercent(current.overall_airdrop_score) : 0;
+  const coverage = buildCoverage(current?.sources_checked || "");
 
   return (
     <div className="page">
@@ -299,13 +332,7 @@ export default function App() {
             <form onSubmit={onSubmit}>
               <div className="field-wrap">
                 <label htmlFor={mainField.key}>{mainField.label} *</label>
-                <input
-                  id={mainField.key}
-                  placeholder={mainField.placeholder}
-                  value={form[mainField.key]}
-                  onChange={(e) => updateField(mainField.key, e.target.value)}
-                  required
-                />
+                <input id={mainField.key} placeholder={mainField.placeholder} value={form[mainField.key]} onChange={(e) => updateField(mainField.key, e.target.value)} required />
                 <small>{mainField.help}</small>
               </div>
 
@@ -314,30 +341,37 @@ export default function App() {
                 {evidenceFields.map((field) => (
                   <div key={field.key} className="field-wrap">
                     <label htmlFor={field.key}>{field.label}</label>
-                    <input
-                      id={field.key}
-                      placeholder={field.placeholder}
-                      value={form[field.key]}
-                      onChange={(e) => updateField(field.key, e.target.value)}
-                    />
+                    <input id={field.key} placeholder={field.placeholder} value={form[field.key]} onChange={(e) => updateField(field.key, e.target.value)} />
                     <small>{field.help}</small>
                   </div>
                 ))}
               </div>
 
+              <button type="button" className="collapse-btn" onClick={() => setAdvancedOpen((v) => !v)}>
+                {advancedOpen ? "Hide Advanced Evidence Sources" : "Show Advanced Evidence Sources"}
+              </button>
+
+              {advancedOpen ? (
+                <div className="advanced-wrap">
+                  <div className="evidence-grid">
+                    {advancedFields.map((field) => (
+                      <div key={field.key} className="field-wrap">
+                        <label htmlFor={field.key}>{field.label}</label>
+                        <input id={field.key} placeholder={field.placeholder} value={form[field.key]} onChange={(e) => updateField(field.key, e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="field-wrap">
                 <label htmlFor={notesField.key}>{notesField.label}</label>
-                <textarea
-                  id={notesField.key}
-                  placeholder={notesField.placeholder}
-                  value={form[notesField.key]}
-                  onChange={(e) => updateField(notesField.key, e.target.value)}
-                />
+                <textarea id={notesField.key} placeholder={notesField.placeholder} value={form[notesField.key]} onChange={(e) => updateField(notesField.key, e.target.value)} />
                 <small>{notesField.help}</small>
               </div>
 
               <button className="cta" type="submit" disabled={!canSubmit}>
-                {loading ? "Running GenLayer Audit..." : "Run AirScout Audit"}
+                {loading ? "Scanning public evidence..." : "Run AirScout Audit"}
               </button>
             </form>
 
@@ -345,6 +379,7 @@ export default function App() {
               {info ? <p className="ok-msg">{info}</p> : null}
               {error ? <p className="err-msg">{error}</p> : null}
               {!isMetaMask ? <p className="warn-msg">MetaMask Extension is required for write transactions.</p> : null}
+              {latestAuditId !== null ? <p className="ok-msg">Latest on-chain audit ID: {latestAuditId}</p> : null}
             </div>
           </section>
 
@@ -364,6 +399,7 @@ export default function App() {
                 <div className="chip-row">
                   {chip("Risk", current?.risk_level || "unknown")}
                   {chip("Time", current?.time_worthiness || "unknown")}
+                  {chip("Source", current?.source_quality || "unknown")}
                 </div>
                 <p className="muted">Stored as on-chain audit result.</p>
               </div>
@@ -374,7 +410,7 @@ export default function App() {
                 <h4>No audit yet</h4>
                 <p>Submit a project to generate an on-chain research report.</p>
                 <div className="skeleton-grid">
-                  {scoreRows.map(([name]) => (
+                  {scoreRows.slice(0, 6).map(([name]) => (
                     <div key={name} className="skeleton-item">
                       <span>{name}</span>
                       <div className="skeleton-bar" />
@@ -384,7 +420,7 @@ export default function App() {
               </div>
             ) : null}
 
-            {loading ? <p className="loading-line">Processing on-chain research flow...</p> : null}
+            {loading ? <p className="loading-line">Reading project sources and writing audit on-chain...</p> : null}
 
             {current ? (
               <>
@@ -402,24 +438,27 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="insight-panel">
-                  <h4>Recommended Strategy</h4>
-                  <p>{current.recommended_strategy}</p>
+                <div className="source-panel">
+                  <h4>Source Coverage</h4>
+                  <div className="chip-row compact">
+                    <span className={`coverage ${coverage.official ? "yes" : "no"}`}>Official Sources</span>
+                    <span className={`coverage ${coverage.funding ? "yes" : "no"}`}>Funding Sources</span>
+                    <span className={`coverage ${coverage.product ? "yes" : "no"}`}>Product Sources</span>
+                    <span className={`coverage ${coverage.community ? "yes" : "no"}`}>Community Sources</span>
+                    <span className={`coverage ${coverage.airdrop ? "yes" : "no"}`}>Airdrop Sources</span>
+                  </div>
                 </div>
 
                 <div className="insight-grid">
-                  <div className="insight-panel">
-                    <h4>Positive Signals</h4>
-                    <p>{current.positive_signals}</p>
-                  </div>
-                  <div className="insight-panel">
-                    <h4>Red Flags</h4>
-                    <p>{current.red_flags}</p>
-                  </div>
-                  <div className="insight-panel full">
-                    <h4>Evidence Summary</h4>
-                    <p>{current.evidence_summary}</p>
-                  </div>
+                  <div className="insight-panel"><h4>Verified Facts</h4><p>{current.verified_facts || "Not provided."}</p></div>
+                  <div className="insight-panel"><h4>Unverified Claims</h4><p>{current.unverified_claims || "Not provided."}</p></div>
+                  <div className="insight-panel"><h4>Missing Evidence</h4><p>{current.missing_evidence || "Not provided."}</p></div>
+                  <div className="insight-panel"><h4>Positive Signals</h4><p>{current.positive_signals || "Not provided."}</p></div>
+                  <div className="insight-panel"><h4>Red Flags</h4><p>{current.red_flags || "Not provided."}</p></div>
+                  <div className="insight-panel"><h4>Sources Checked</h4><p>{current.sources_checked || "Not reported."}</p></div>
+                  <div className="insight-panel"><h4>Sources Failed</h4><p>{current.sources_failed || "No known failures."}</p></div>
+                  <div className="insight-panel full"><h4>Recommended Strategy</h4><p>{current.recommended_strategy || "Not provided."}</p></div>
+                  <div className="insight-panel full"><h4>Evidence Summary</h4><p>{current.evidence_summary || "Not provided."}</p></div>
                 </div>
               </>
             ) : null}
@@ -454,9 +493,7 @@ export default function App() {
             ))}
           </div>
 
-          <a className="genlayer-link" href="https://genlayer.com" target="_blank" rel="noreferrer">
-            Learn more about GenLayer
-          </a>
+          <a className="genlayer-link" href="https://genlayer.com" target="_blank" rel="noreferrer">Learn more about GenLayer</a>
         </section>
       </div>
     </div>

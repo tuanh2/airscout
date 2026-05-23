@@ -222,6 +222,26 @@ textarea { min-height: 90px; resize: vertical; }
 
 .cta:disabled { opacity: 0.55; cursor: not-allowed; }
 
+.collapse-btn {
+  margin-top: 12px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 9px;
+  background: #0b1425;
+  color: #c2d6f5;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.advanced-wrap {
+  margin-top: 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(10, 17, 31, 0.45);
+}
+
 .messages { margin-top: 12px; }
 .ok-msg, .err-msg, .warn-msg {
   margin: 8px 0 0;
@@ -357,6 +377,38 @@ textarea { min-height: 90px; resize: vertical; }
 }
 
 .insight-panel.full { grid-column: span 2; }
+
+.source-panel {
+  margin-top: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(10, 17, 31, 0.6);
+}
+
+.source-panel h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.coverage {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line-strong);
+}
+
+.coverage.yes {
+  border-color: rgba(41, 211, 193, 0.45);
+  color: #97f3e9;
+  background: rgba(20, 78, 67, 0.32);
+}
+
+.coverage.no {
+  border-color: rgba(243, 188, 102, 0.45);
+  color: #ffd6a1;
+  background: rgba(86, 61, 21, 0.3);
+}
 
 .history { margin-top: 14px; padding: 18px; }
 .section-head.inline { display: flex; justify-content: space-between; align-items: center; }
